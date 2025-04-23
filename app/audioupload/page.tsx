@@ -1,26 +1,66 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useRef, useState, useEffect } from "react"
 import { toast } from "sonner"
+import { useTranscriptContext } from "../TranscriptContext"
 
 export default function AudioRecorder() {
   const [recording, setRecording] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [transcript, setTranscript] = useState("")
+  const { transcript, setTranscript, transcriptionResult } = useTranscriptContext();
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const streamRef = useRef<MediaStream | null>(null)
 
+  // ✅ Send to Gemini once both audio and video transcriptions are available
+  useEffect(() => {
+    console.log('Transcript:', transcript);
+    console.log('Transcription Result:', transcriptionResult);
+  
+    if (transcript && transcriptionResult) {
+      sendToGemini();
+    }
+  }, [transcript, transcriptionResult]);
+
+  const sendToGemini = async () => {
+    
+     const audioTranscript= transcript
+     const videoTranscript= transcriptionResult
+    console.log("the value of audio to text is ",audioTranscript)
+    console.log("the value of video to text is ",videoTranscript)
+
+    
+
+    try {
+      const response = await fetch("/api/matchTextWithGemini", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({audioTranscript,videoTranscript}),
+      })
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error("Error response:", text);
+        throw new Error("Server error");
+      }
+      
+      const data = await response.json(); // only called if response.ok
+      console.log("Data from Gemini API:", data);
+    } catch (err) {
+      console.error("Error sending to Gemini:", err)
+      toast.error("Failed to send to Gemini. Please try again.")
+    }
+  }
+
   const handleStartRecording = async () => {
     try {
-      // Reset transcript when starting a new recording
-      setTranscript("")
+      setTranscript("") // Reset transcript
 
-      // Get microphone access
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
 
-      // Create media recorder with specific mime type and bitrate
       const options = {
         mimeType: "audio/webm;codecs=opus",
         audioBitsPerSecond: 128000,
@@ -29,33 +69,26 @@ export default function AudioRecorder() {
       mediaRecorderRef.current = new MediaRecorder(stream, options)
       audioChunksRef.current = []
 
-      // Handle data available event
       mediaRecorderRef.current.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data)
         }
       }
 
-      // Handle stop event
       mediaRecorderRef.current.onstop = async () => {
-        // Stop all audio tracks
         streamRef.current?.getAudioTracks().forEach((track) => track.stop())
 
-        // Create audio blob from chunks
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" })
 
-        // Check if we have audio data
         if (audioBlob.size === 0) {
           toast.error("No audio recorded. Please try again.")
           setLoading(false)
           return
         }
 
-        // Create form data
         const formData = new FormData()
         formData.append("audio", audioBlob, "recording.webm")
 
-        // Send to API
         setLoading(true)
         toast.info("Uploading and transcribing your audio...")
 
@@ -67,11 +100,9 @@ export default function AudioRecorder() {
 
           let data
           try {
-            // Try to parse as JSON
             data = await res.json()
           } catch (e) {
-            console.log("error a agaya bhaiya ",e)
-            // If not JSON, get as text
+            console.log("the error is ",e)
             const text = await res.text()
             console.error("Non-JSON response:", text)
             toast.error("Received invalid response from server")
@@ -81,9 +112,7 @@ export default function AudioRecorder() {
 
           if (!res.ok) {
             console.error("API error:", data)
-
             if (res.status === 202) {
-              // Still processing
               toast.info("Transcription is taking longer than expected. Please wait...")
             } else {
               toast.error(`Error: ${data.error || "Unknown error"}`)
@@ -93,7 +122,7 @@ export default function AudioRecorder() {
           }
 
           if (data.text) {
-            setTranscript(data.text)
+            setTranscript(data.text) // ✅ Let useEffect trigger Gemini send
             toast.success("Transcription complete!")
           } else {
             setTranscript("No text transcribed")
@@ -107,8 +136,7 @@ export default function AudioRecorder() {
         }
       }
 
-      // Start recording with timeslice to get data periodically
-      mediaRecorderRef.current.start(1000) // Get data every second
+      mediaRecorderRef.current.start(1000)
       setRecording(true)
       toast.info("Recording started. Speak now...")
     } catch (err) {
@@ -166,6 +194,7 @@ export default function AudioRecorder() {
             >
               Copy Text
             </button>
+            <button onClick={() => localStorage.clear()}>Reset Transcript</button>
           </div>
         </div>
       )}
