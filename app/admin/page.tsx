@@ -44,7 +44,7 @@ function UploadVideo() {
     try {
       // Step 1: Upload the video to S3
       const response = await uploadVideoToS3(selectedFile);
-
+      localStorage.setItem("videoUrl", response.videoUrl);
       // Step 2: Call the transcription API with the uploaded video's URL
       const transcriptionRes = await fetch("/api/video-to-text", {
         method: "POST",

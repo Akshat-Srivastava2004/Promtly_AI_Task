@@ -1,25 +1,40 @@
+'use client';
+
 import React, { useEffect, useRef } from 'react';
 
+
 type VideoPlayerProps = {
-  videoUrl: string;
-  timestamp: string;
+  timestamp: string; // Timestamp is already in seconds or in a valid format
 };
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ videoUrl, timestamp }) => {
+const VideoPlayer: React.FC<VideoPlayerProps> = ({ timestamp }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  
 
-  // Function to convert timestamp to seconds
-  const convertTimestampToSeconds = (timestamp: string): number => {
-    const [minutes, seconds] = timestamp.split(':').map(Number);
-    return minutes * 60 + seconds;
+  // Get the videoUrl from localStorage
+  const videoUrl = localStorage.getItem('videoUrl') || '';
+
+  // Function to extract timestamp from query string
+  const extractTimestampFromUrl = (url: string) => {
+    const match = url.match(/timestamp=(\d+:\d+)/);
+    return match ? match[1] : ''; // Extract timestamp in format `0:04`
   };
 
-  // Use useEffect to trigger video playback when the component is mounted or timestamp changes
   useEffect(() => {
-    if (videoRef.current && timestamp) {
-      const timeInSeconds = convertTimestampToSeconds(timestamp);
-      videoRef.current.currentTime = timeInSeconds;
-      videoRef.current.play(); // Play the video after seeking
+    // Get the timestamp from URL or props
+    const queryTimestamp = extractTimestampFromUrl(window.location.href) || timestamp;
+
+    if (videoRef.current && queryTimestamp) {
+      // Handle the timestamp if it's in the correct format (e.g., 0:04)
+      const [minutes, seconds] = queryTimestamp.split(':').map(Number);
+      const timeInSeconds = minutes * 60 + seconds;
+
+      if (!isNaN(timeInSeconds)) {
+        videoRef.current.currentTime = timeInSeconds;
+        videoRef.current.play(); // Play the video after seeking
+      } else {
+        console.error('Invalid timestamp:', queryTimestamp);
+      }
     }
   }, [timestamp]);
 
