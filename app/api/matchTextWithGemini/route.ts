@@ -1,71 +1,112 @@
-// app/api/matchTextWithGemini/route.ts
+import { NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
 
-import { NextResponse } from 'next/server';
+// Initialize Supabase client
+const supabaseUrl = "https://mlximpcadurwyjdewrxz.supabase.co"; // Replace with your Supabase URL
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1seGltcGNhZHVyd3lqZGV3cnh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0MjgyNjMsImV4cCI6MjA2MTAwNDI2M30.aSSnn2PzrCTuYNllzRqAvFRfOxfXjpeGGwwJqGNc3qE"; // Replace with your Supabase API key
+const supabase = createClient(supabaseUrl, supabaseKey)
 
 export async function POST(req: Request) {
   try {
-    const { audioTranscript, videoTranscript } = await req.json();
+    const { audioTranscript } = await req.json()
 
-    if (!audioTranscript || !videoTranscript) {
-      return NextResponse.json({ error: 'Missing audio or video transcript' }, { status: 400 });
+    if (!audioTranscript) {
+      return NextResponse.json({ error: "Missing audio transcript" }, { status: 400 })
     }
 
-    const GeminiAPIKey = process.env.GEMINI_API_KEY || "YOUR_DEFAULT_FALLBACK_KEY";
+    // Fetch all videos and their transcripts from Supabase
+    const { data: videos, error } = await supabase.from("videos").select("url, transcript")
+    console.log("the data is given to gemini is ",videos);
 
-    const prompt = `
-    You are an AI assistant that matches text from different sources. 
-    Below is an audio transcription and a video transcription. Please find the timestamp where the following audio transcription matches the video transcription. 
+    if (error) {
+      console.error("Error fetching videos from Supabase:", error)
+      return NextResponse.json({ error: "Failed to fetch videos from database" }, { status: 500 })
+    }
 
-    Audio Transcription:
-    ${audioTranscript}
+    if (!videos || videos.length === 0) {
+      return NextResponse.json({ error: "No videos found in database" }, { status: 404 })
+    }
 
-    Video Transcription:
-    ${videoTranscript}
+    const GeminiAPIKey = process.env.GEMINI_API_KEY || "AIzaSyAqV8jIWIUj-b-Ug9yTPAMu3SrQSxWSNDM"
 
-    Provide the timestamp where the audio transcription appears in the video transcription. If no match is found, return "No match."
-    `;
+    // Process each video transcript with Gemini
+    let bestMatch = null
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GeminiAPIKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+    for (const video of videos) {
+      const prompt = `
+      You are an AI assistant that matches text from different sources. 
+      Below is an audio transcription and a video transcription. Please find the timestamp where the following audio transcription matches the video transcription. 
+
+      Audio Transcription:
+      ${audioTranscript}
+
+      Video Transcription:
+      ${video.transcript}
+
+      Provide the timestamp where the audio transcription appears in the video transcription in the format "MM:SS" (e.g., "01:45"). 
+      If no match is found, return "No match. and return me the same url of that video of which transcript is matched dont change the name or file path of that videourl "
+      `
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GeminiAPIKey}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [{ text: prompt }],
+              },
+            ],
+          }),
         },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }],
-            },
-          ],
-        }),
+      )
+
+      // Log the response for debugging
+      const responseText = await response.text()
+      console.log("Gemini API Response for video:", video.url, responseText)
+
+      if (!response.ok) {
+        console.error(`Error from Gemini for video ${video.url}:`, responseText)
+        continue // Try the next video
       }
-    );
 
-    // Log the response for debugging
-    const responseText = await response.text(); // Get the raw response as text
-    console.log('Gemini API Response:', responseText);
+      try {
+        const data = JSON.parse(responseText)
+        const outputText = data?.candidates?.[0]?.content?.parts?.[0]?.text
 
-    if (!response.ok) {
-      return NextResponse.json({ error: `Error from Gemini: ${responseText}` }, { status: response.status });
+        if (!outputText) {
+          console.log(`No output from Gemini for video ${video.url}`)
+          continue
+        }
+
+        // Check if there's a match
+        if (!outputText.includes("No match")) {
+          // Extract timestamp in format MM:SS
+          const timestampMatch = outputText.match(/\d+:\d+/)
+          if (timestampMatch) {
+            bestMatch = {
+              timestamp: timestampMatch[0],
+              videoUrl: video.url,  // Ensure that the exact video URL is associated with the timestamp
+            }
+            break // Found a match, no need to check other videos
+          }
+        }
+      } catch (parseError) {
+        console.error("Error parsing Gemini response:", parseError)
+        continue
+      }
     }
 
-    const data = JSON.parse(responseText);
-    const outputText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!outputText) {
-      return NextResponse.json({ error: 'No output from Gemini' }, { status: 500 });
-    }
-
-    const timestampMatch = outputText.includes("No match") ? null : outputText;
-
-    if (timestampMatch) {
-      return NextResponse.json({ timestamp: timestampMatch });
+    if (bestMatch) {
+      return NextResponse.json(bestMatch)
     } else {
-      return NextResponse.json({ error: 'No match found' }, { status: 404 });
+      return NextResponse.json({ error: "No match found in any video" }, { status: 404 })
     }
   } catch (error) {
-    console.error("Server error:", error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error("Server error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

@@ -9,7 +9,8 @@ export default function AudioRecorder() {
   const [recording, setRecording] = useState(false);
   const [loading, setLoading] = useState(false);
   const [timestampp, setTimestampp] = useState("");
-  const { transcript, setTranscript, transcriptionResult } = useTranscriptContext();
+  const [videourll,setVideourll]=useState("");
+  const { transcript, setTranscript, } = useTranscriptContext();
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
@@ -17,23 +18,18 @@ export default function AudioRecorder() {
   // ✅ Send to Gemini once both audio and video transcriptions are available
   useEffect(() => {
     console.log("Transcript:", transcript);
-    console.log("Transcription Result:", transcriptionResult);
-    console.log("Timestamp:", timestampp);
-    if (transcript && transcriptionResult) {
+    if(transcript){
       sendToGemini();
-    }
+    }   
 
     // Instead of using `router.push`, use Link for navigation in the component's JSX
-    if (timestampp) {
-      // You can now use Link in the JSX to pass the timestamp
-    }
-  }, [transcript, transcriptionResult, timestampp]);
+  }, [transcript]);
 
   const sendToGemini = async () => {
     const audioTranscript = transcript;
-    const videoTranscript = transcriptionResult;
+   
     console.log("the value of audio to text is ", audioTranscript);
-    console.log("the value of video to text is ", videoTranscript);
+   
 
     try {
       const response = await fetch("/api/matchTextWithGemini", {
@@ -41,7 +37,7 @@ export default function AudioRecorder() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ audioTranscript, videoTranscript }),
+        body: JSON.stringify({ audioTranscript }),
       });
 
       if (!response.ok) {
@@ -51,8 +47,10 @@ export default function AudioRecorder() {
       }
 
       const data = await response.json(); // only called if response.ok
-      console.log("Data from Gemini API:", data.timestamp);
+      console.log("Data from Gemini API is am getting :", data.timestamp);
+      console.log("Data from the gemini about video url is ",data.videoUrl);
       setTimestampp(data.timestamp); // Set the timestamp received from Gemini
+      setVideourll(data.videoUrl);
     } catch (err) {
       console.error("Error sending to Gemini:", err);
       toast.error("Failed to send to Gemini. Please try again.");
@@ -164,7 +162,7 @@ export default function AudioRecorder() {
 
   return (
     <div className="max-w-md mx-auto p-6 border rounded-lg shadow-md space-y-6 bg-white">
-      <h2 className="text-xl font-semibold text-center">Speech to Text Converter</h2>
+      <h2 className="text-xl font-semibold text-center">AI Voice-Based Video Assistant </h2>
 
       <div className="flex justify-center">
         <button
@@ -207,7 +205,7 @@ export default function AudioRecorder() {
       {timestampp && (
         <div className="mt-4 text-center">
           <Link
-            href={`/VideoPlayer?timestamp=${timestampp}`}
+            href={`/VideoPlayer?timestamp=${timestampp}&videourl=${videourll}`}
             className="px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700"
           >
             Go to Video Player
