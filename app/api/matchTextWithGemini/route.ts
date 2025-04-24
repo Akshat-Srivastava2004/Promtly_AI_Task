@@ -2,8 +2,8 @@ import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
 // Initialize Supabase client
-const supabaseUrl = "https://mlximpcadurwyjdewrxz.supabase.co"; // Replace with your Supabase URL
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1seGltcGNhZHVyd3lqZGV3cnh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0MjgyNjMsImV4cCI6MjA2MTAwNDI2M30.aSSnn2PzrCTuYNllzRqAvFRfOxfXjpeGGwwJqGNc3qE"; // Replace with your Supabase API key
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY!
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 export async function POST(req: Request) {
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No videos found in database" }, { status: 404 })
     }
 
-    const GeminiAPIKey = process.env.GEMINI_API_KEY || "AIzaSyAqV8jIWIUj-b-Ug9yTPAMu3SrQSxWSNDM"
+    const GeminiAPIKey = process.env.GEMINI_API_KEY!
 
     // Process each video transcript with Gemini
     let bestMatch = null

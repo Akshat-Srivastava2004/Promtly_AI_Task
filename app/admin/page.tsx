@@ -9,8 +9,8 @@ import { CheckCircle, XCircle } from "lucide-react";
 import { useTranscriptContext } from "../TranscriptContext"
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = "https://mlximpcadurwyjdewrxz.supabase.co"; // Replace with your Supabase URL
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1seGltcGNhZHVyd3lqZGV3cnh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0MjgyNjMsImV4cCI6MjA2MTAwNDI2M30.aSSnn2PzrCTuYNllzRqAvFRfOxfXjpeGGwwJqGNc3qE"; // Replace with your Supabase API key
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY!
 const supabase = createClient(supabaseUrl, supabaseKey);
 function UploadVideo() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);

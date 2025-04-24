@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { AssemblyAI } from "assemblyai"
 
 // Get API key from environment variable for security
-const API_KEY = process.env.ASSEMBLYAI_API_KEY || "cff2cb4c1c8e429cb03a5a6c47c54c33"
+const API_KEY = process.env.ASSEMBLYAI_API_KEY!
 const client = new AssemblyAI({ apiKey: API_KEY })
 console.log("the client id is ",client)
 
