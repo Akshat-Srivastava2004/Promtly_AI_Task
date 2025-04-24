@@ -7,6 +7,11 @@ import { uploadVideoToS3 } from "../component/UploadVideo";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle, XCircle } from "lucide-react";
 import { useTranscriptContext } from "../TranscriptContext"
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = "https://mlximpcadurwyjdewrxz.supabase.co"; // Replace with your Supabase URL
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1seGltcGNhZHVyd3lqZGV3cnh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0MjgyNjMsImV4cCI6MjA2MTAwNDI2M30.aSSnn2PzrCTuYNllzRqAvFRfOxfXjpeGGwwJqGNc3qE"; // Replace with your Supabase API key
+const supabase = createClient(supabaseUrl, supabaseKey);
 function UploadVideo() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -46,6 +51,7 @@ function UploadVideo() {
       const response = await uploadVideoToS3(selectedFile);
       localStorage.setItem("videoUrl", response.videoUrl);
       // Step 2: Call the transcription API with the uploaded video's URL
+      console.log(response)
       const transcriptionRes = await fetch("/api/video-to-text", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -53,14 +59,34 @@ function UploadVideo() {
       });
 
       const transcriptionData = await transcriptionRes.json();
-
+      console.log(transcriptionData)
       if (transcriptionRes.ok) {
         setTranscriptionResult(transcriptionData.transcription.text);
+        const { data, error } = await supabase.from("videos").insert([
+          {
+            title:"video",
+            url: response.videoUrl,
+            transcript: transcriptionData.transcription.text,
+          },
+        ]);
         setUploadResult({
           success: true,
           message: `Video uploaded successfully. Transcription: ${transcriptionData.transcription.text}`,
           
         });
+        if (error) {
+          console.error("Error inserting data into Supabase:", error.message);
+          setUploadResult({
+            success: false,
+            message: `Video uploaded and transcribed, but failed to save to database: ${error.message}`,
+          });
+        } else {
+          console.log("Data inserted into Supabase:", data);
+          setUploadResult({
+            success: true,
+            message: `Video uploaded successfully. Transcription: ${transcriptionData.transcription.text}`,
+          });
+        }
       } else {
         setUploadResult({
           success: false,
