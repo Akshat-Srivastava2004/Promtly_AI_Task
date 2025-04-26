@@ -1,75 +1,80 @@
-"use client"
+"use client";
 
 import { useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useTranscriptContext } from "../TranscriptContext";
-import Link from "next/link"; // Import Link from Next.js
+import Link from "next/link";
 
 export default function AudioRecorder() {
   const [recording, setRecording] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [timestampp, setTimestampp] = useState("");
-  const [videourll,setVideourll]=useState("");
-  const { transcript, setTranscript, } = useTranscriptContext();
+  const [timestamp, setTimestamp] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
+  const { transcript, setTranscript } = useTranscriptContext();
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // ✅ Send to Gemini once both audio and video transcriptions are available
   useEffect(() => {
-    console.log("Transcript:", transcript);
-    if(transcript){
+    if (transcript) {
       sendToGemini();
-    }   
-
-    // Instead of using `router.push`, use Link for navigation in the component's JSX
+    }
   }, [transcript]);
 
   const sendToGemini = async () => {
-    const audioTranscript = transcript;
-   
-    console.log("the value of audio to text is ", audioTranscript);
-   
-
     try {
       const response = await fetch("/api/matchTextWithGemini", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ audioTranscript }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audioTranscript: transcript }),
       });
 
       if (!response.ok) {
-        const text = await response.text();
-        console.error("Error response:", text);
-        throw new Error("Server error");
+        const errorText = await response.text();
+        console.error("Error:", errorText);
+        throw new Error("Failed to match text with Gemini");
       }
 
-      const data = await response.json(); // only called if response.ok
-      console.log("Data from Gemini API is am getting :", data.timestamp);
-      console.log("Data from the gemini about video url is ",data.videoUrl);
-      setTimestampp(data.timestamp); // Set the timestamp received from Gemini
-      setVideourll(data.videoUrl);
+      const data = await response.json();
+      console.log("Gemini API Response:", data);
+      setTimestamp(data.timestamp);
+      setVideoUrl(data.videoUrl);
     } catch (err) {
-      console.error("Error sending to Gemini:", err);
-      toast.error("Failed to send to Gemini. Please try again.");
+      console.error(err);
+      toast.error("Failed to send data to Gemini.");
     }
+  };
+
+  const getSupportedMimeType = () => {
+    const possibleTypes = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/mp4",
+      "audio/mpeg",
+      "audio/aac",
+    ];
+    for (const type of possibleTypes) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        return type;
+      }
+    }
+    return "";
   };
 
   const handleStartRecording = async () => {
     try {
-      setTranscript(""); // Reset transcript
-
+      setTranscript("");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      const options = {
-        mimeType: "audio/webm;codecs=opus",
-        audioBitsPerSecond: 128000,
-      };
+      const mimeType = getSupportedMimeType();
+      if (!mimeType) {
+        toast.error("No supported audio format found!");
+        return;
+      }
 
-      mediaRecorderRef.current = new MediaRecorder(stream, options);
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
       audioChunksRef.current = [];
 
       mediaRecorderRef.current.ondataavailable = (event) => {
@@ -79,10 +84,9 @@ export default function AudioRecorder() {
       };
 
       mediaRecorderRef.current.onstop = async () => {
-        streamRef.current?.getAudioTracks().forEach((track) => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
 
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         if (audioBlob.size === 0) {
           toast.error("No audio recorded. Please try again.");
           setLoading(false);
@@ -93,7 +97,7 @@ export default function AudioRecorder() {
         formData.append("audio", audioBlob, "recording.webm");
 
         setLoading(true);
-        toast.info("Uploading and transcribing your audio...");
+        toast.info("Uploading your audio...");
 
         try {
           const res = await fetch("/api/speech-to-text", {
@@ -101,39 +105,24 @@ export default function AudioRecorder() {
             body: formData,
           });
 
-          let data;
-          try {
-            data = await res.json();
-          } catch (e) {
-            console.log("the error is ", e);
-            const text = await res.text();
-            console.error("Non-JSON response:", text);
-            toast.error("Received invalid response from server");
-            setLoading(false);
-            return;
-          }
+          const data = await res.json();
 
           if (!res.ok) {
-            console.error("API error:", data);
-            if (res.status === 202) {
-              toast.info("Transcription is taking longer than expected. Please wait...");
-            } else {
-              toast.error(`Error: ${data.error || "Unknown error"}`);
-            }
+            toast.error(data.error || "Transcription failed.");
             setLoading(false);
             return;
           }
 
           if (data.text) {
-            setTranscript(data.text); // ✅ Let useEffect trigger Gemini send
-            toast.success("Transcription complete!");
+            setTranscript(data.text);
+            toast.success("Transcription completed!");
           } else {
-            setTranscript("No text transcribed");
-            toast.warning("No text was detected in your recording");
+            setTranscript("No text detected.");
+            toast.warning("No text detected in the audio.");
           }
         } catch (err) {
-          console.error("Fetch error:", err);
-          toast.error("Network error. Please check your connection.");
+          console.error(err);
+          toast.error("Failed to upload audio.");
         } finally {
           setLoading(false);
         }
@@ -141,13 +130,13 @@ export default function AudioRecorder() {
 
       mediaRecorderRef.current.start(1000);
       setRecording(true);
-      toast.info("Recording started. Speak now...");
+      toast.success("Recording started!");
     } catch (err) {
-      console.error("Recording error:", err);
+      console.error("Start Recording Error:", err);
       if (err instanceof DOMException && err.name === "NotAllowedError") {
-        toast.error("Microphone access denied. Please allow microphone access.");
+        toast.error("Microphone permission denied!");
       } else {
-        toast.error("Failed to start recording. Please try again.");
+        toast.error("Failed to start recording.");
       }
     }
   };
@@ -156,13 +145,13 @@ export default function AudioRecorder() {
     if (mediaRecorderRef.current && recording) {
       mediaRecorderRef.current.stop();
       setRecording(false);
-      toast.info("Processing your audio...");
+      toast.info("Processing your recording...");
     }
   };
 
   return (
     <div className="max-w-md mx-auto p-6 border rounded-lg shadow-md space-y-6 bg-white">
-      <h2 className="text-xl font-semibold text-center">AI Voice-Based Video Assistant </h2>
+      <h2 className="text-xl font-semibold text-center">🎙️ AI Voice-Based Assistant</h2>
 
       <div className="flex justify-center">
         <button
@@ -187,33 +176,38 @@ export default function AudioRecorder() {
           <h3 className="font-semibold mb-2">Transcript:</h3>
           <p className="text-gray-700 whitespace-pre-wrap">{transcript}</p>
 
-          <div className="mt-4 flex justify-end">
+          <div className="mt-4 flex justify-end space-x-2">
             <button
               onClick={() => {
                 navigator.clipboard.writeText(transcript);
-                toast.success("Copied to clipboard!");
+                toast.success("Transcript copied!");
               }}
-              className="text-sm px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded transition-colors"
+              className="text-sm px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded"
             >
-              Copy Text
+              Copy
             </button>
-            <button onClick={() => localStorage.clear()}>Reset Transcript</button>
+            <button
+              onClick={() => localStorage.clear()}
+              className="text-sm px-3 py-1 bg-red-200 hover:bg-red-300 rounded"
+            >
+              Clear
+            </button>
           </div>
         </div>
       )}
 
-      {timestampp && (
+      {timestamp && videoUrl && (
         <div className="mt-4 text-center">
           <Link
-            href={`/VideoPlayer?timestamp=${timestampp}&videourl=${videourll}`}
+            href={`/VideoPlayer?timestamp=${timestamp}&videourl=${videoUrl}`}
             className="px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700"
           >
-            Go to Video Player
+            Go to Video
           </Link>
         </div>
       )}
 
-      <p className="text-xs text-gray-500 text-center">Powered by AssemblyAI. Click the button and start speaking.</p>
+      <p className="text-xs text-gray-500 text-center">Powered by AssemblyAI and Gemini</p>
     </div>
   );
 }
