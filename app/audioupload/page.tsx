@@ -168,65 +168,98 @@ export default function AudioRecorder() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-6 border rounded-lg shadow-md space-y-6 bg-white">
-      <h2 className="text-xl font-semibold text-center">🎙️ AI Voice-Based Assistant</h2>
-
-      <div className="flex justify-center">
-        <button
-          onClick={recording ? handleStopRecording : handleStartRecording}
-          disabled={loading}
-          className={`p-4 text-white rounded-full font-medium transition-all ${
-            recording ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
-          } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
-          aria-label={recording ? "Stop recording" : "Start recording"}
-        >
-          {loading ? (
-            <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-white"></div>
-          ) : recording ? (
-            <Square className="h-6 w-6" />
-          ) : (
-            <Mic className="h-6 w-6" />
-          )}
+    <>
+    {/* Admin Panel Button */}
+    <div className="fixed top-6 left-6 z-50">
+      <a href="./admin">
+        <button className="px-5 py-2 bg-gradient-to-r from-pink-300 to-purple-300 text-purple-800 font-semibold rounded-full shadow-md hover:scale-105 hover:shadow-xl transition-all duration-300">
+          Admin Panel
         </button>
-      </div>
-
-      {loading && (
-        <div className="flex justify-center items-center py-4">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-700"></div>
-        </div>
-      )}
-
-      {transcript && (
-        <div className="p-4 border rounded-lg bg-gray-50">
-          <h3 className="font-semibold mb-2">Transcript:</h3>
-          <p className="text-gray-700 whitespace-pre-wrap">{transcript}</p>
-
-          <div className="mt-4 flex justify-end space-x-2">
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(transcript)
-                toast.success("Transcript copied!")
-              }}
-              className="text-sm px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded"
-            >
-              Copy
-            </button>
-            <button onClick={handleClear} className="text-sm px-3 py-1 bg-red-200 hover:bg-red-300 rounded">
-              Clear
-            </button>
-          </div>
-        </div>
-      )}
-
-      {timestamp && videoUrl && (
-        <div className="mt-6 w-full">
-          <h3 className="font-semibold mb-2">Video Result:</h3>
-          {/* Use the VideoPlayer component here */}
-          <VideoPlayer timestamp={timestamp} videoUrl={videoUrl} />
-        </div>
-      )}
-
-      <p className="text-xs text-gray-500 text-center">Powered by AssemblyAI and Gemini</p>
+      </a>
     </div>
+  
+    {/* Main Container */}
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 p-8">
+      <div className="max-w-3xl w-full p-10 sm:p-16 backdrop-blur-lg bg-white/60 rounded-3xl border border-black/10 shadow-2xl space-y-10 transition-all duration-500">
+  
+        {/* Heading */}
+        <h2 className="text-4xl font-extrabold text-center text-purple-800 tracking-wide drop-shadow-md animate-fade-in">
+          🎙️ Pedu AI
+        </h2>
+  
+        {/* Record Button */}
+        <div className="flex justify-center">
+          <button
+            onClick={recording ? handleStopRecording : handleStartRecording}
+            disabled={loading}
+            className={`p-6 rounded-full text-white font-bold shadow-lg transition-all duration-300 hover:scale-110 ${
+              recording
+                ? "bg-red-400 hover:bg-red-500"
+                : "bg-green-400 hover:bg-green-500"
+            } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+            aria-label={recording ? "Stop recording" : "Start recording"}
+          >
+            {loading ? (
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+            ) : recording ? (
+              <Square className="h-8 w-8 text-white" />
+            ) : (
+              <Mic className="h-8 w-8 text-white" />
+            )}
+          </button>
+        </div>
+  
+        {/* Loading Spinner */}
+        {loading && (
+          <div className="flex justify-center items-center py-6">
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-pink-400"></div>
+          </div>
+        )}
+  
+        {/* Transcript Section */}
+        {transcript && (
+          <div className="p-6 bg-white/70 rounded-2xl border border-pink-200 shadow-inner backdrop-blur-md text-purple-900 space-y-4">
+            <h3 className="text-2xl font-bold text-pink-700">Transcript:</h3>
+            <p className="whitespace-pre-wrap leading-relaxed">{transcript}</p>
+  
+            <div className="mt-6 flex justify-end gap-4">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(transcript);
+                  toast.success("Transcript copied!");
+                }}
+                className="px-4 py-2 text-sm bg-purple-300 hover:bg-purple-400 text-purple-900 rounded-full shadow hover:scale-105 transition-all duration-300"
+              >
+                Copy
+              </button>
+              <button
+                onClick={handleClear}
+                className="px-4 py-2 text-sm bg-pink-300 hover:bg-pink-400 text-pink-900 rounded-full shadow hover:scale-105 transition-all duration-300"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
+  
+        {/* Video Section */}
+        {timestamp && videoUrl && (
+          <div className="w-full">
+            <h3 className="text-2xl font-bold text-purple-700 mb-4">Video Result:</h3>
+            <VideoPlayer timestamp={timestamp} videoUrl={videoUrl} />
+          </div>
+        )}
+  
+        {/* Footer */}
+        <p className="text-xs text-center text-purple-400">
+          Powered by <span className="font-semibold">AssemblyAI</span> & <span className="font-semibold">Gemini</span>
+        </p>
+  
+      </div>
+    </div>
+  </>
+  
+  
+
   )
 }
