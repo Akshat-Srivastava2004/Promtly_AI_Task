@@ -1,5 +1,6 @@
 "use client"
 
+// import { withCoalescedInvoke } from "next/dist/lib/coalesced-function"
 import { useEffect, useRef } from "react"
 
 interface VideoPlayerProps {
@@ -47,7 +48,7 @@ const VideoPlayer = ({ timestamp, videoUrl }: VideoPlayerProps) => {
       <p className="mb-2">Playing video at timestamp: {timestamp}</p>
 
       <div className="relative w-full aspect-video bg-black rounded overflow-hidden">
-        <video ref={videoRef} className="w-full h-full" controls preload="auto">
+        <video ref={videoRef}  className="w-full h-full" controls preload="auto">
           <source src={videoUrl} type="video/mp4" />
           Your browser does not support the video tag.
         </video>
