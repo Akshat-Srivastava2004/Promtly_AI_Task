@@ -4,8 +4,8 @@
 // import { LandingNavbar } from "./component/landingnavbar"
 // import { LandingFeatures } from "./component/landing-features"
 
-import AudioUpload from "./audioupload/page";
-
+// import AudioUpload from "./audioupload/page";
+import AudioRecorder from "./audioupload/page"
 export default function Home() {
   // const { userId } = auth()
 
@@ -15,7 +15,7 @@ export default function Home() {
 
   return (
     <div className="h-full">
-      <AudioUpload />
+   <AudioRecorder />
       {/* <LandingNavbar />
       <LandingHero />
       <LandingFeatures /> */}

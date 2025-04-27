@@ -1,22 +1,14 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import { useSearchParams } from "next/navigation"
+import { useEffect, useRef } from "react"
 
-const VideoPlayer = () => {
+interface VideoPlayerProps {
+  timestamp: string
+  videoUrl: string
+}
+
+const VideoPlayer = ({ timestamp, videoUrl }: VideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const searchParams = useSearchParams()
-
-  const [timestamp, setTimestamp] = useState<string>("")
-  const [videoUrl, setVideoUrl] = useState<string>("")
-
-  useEffect(() => {
-    const ts = searchParams.get("timestamp") || ""
-    const url = searchParams.get("videourl") || ""
-
-    setTimestamp(ts)
-    setVideoUrl(url)
-  }, [searchParams])
 
   useEffect(() => {
     if (videoRef.current && timestamp) {
@@ -38,11 +30,11 @@ const VideoPlayer = () => {
         console.error("Invalid timestamp:", timestamp)
       }
     }
-  }, [timestamp])
+  }, [timestamp, videoUrl])
 
   if (!videoUrl) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+      <div className="flex flex-col items-center justify-center p-4">
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           <p>No video URL provided. Please go back and try again.</p>
         </div>
@@ -51,24 +43,14 @@ const VideoPlayer = () => {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-pink-100">
-      <div className="bg-white shadow-lg rounded-lg p-6 w-full max-w-3xl">
-        <h1 className="text-2xl font-bold mb-4">Video Player</h1>
-        <p className="mb-4">Playing video at timestamp: {timestamp}</p>
+    <div className="w-full">
+      <p className="mb-2">Playing video at timestamp: {timestamp}</p>
 
-        <div className="relative w-full aspect-video bg-black rounded overflow-hidden">
-          <video
-            ref={videoRef}
-            className="w-full h-full"
-            controls
-            muted
-            preload="auto"
-          >
-            <source src={videoUrl} type="video/mp4" />
-            Your browser does not support the video tag.
-          </video>
-          <p>{videoUrl}</p>
-        </div>
+      <div className="relative w-full aspect-video bg-black rounded overflow-hidden">
+        <video ref={videoRef} className="w-full h-full" controls preload="auto">
+          <source src={videoUrl} type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
       </div>
     </div>
   )
